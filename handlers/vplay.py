@@ -9,7 +9,7 @@ from services.youtube import get_youtube_link
 from services.downloader import fetch_media
 
 
-def register_vplay(bot: Client, userbot: Client):
+def register(bot: Client, userbot: Client):
     """Register the /vplay command on the bot client."""
 
     @bot.on_message(filters.command("vplay") & (filters.private | filters.group))
