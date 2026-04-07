@@ -14,7 +14,6 @@ from pyrogram import Client, idle
 
 from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
 import handlers  # triggers handlers/__init__.py  (the auto-loader)
-import services
 
 async def main():
     # ── Create clients ──────────────────────────────────────
