@@ -14,7 +14,7 @@ from pyrogram import Client, idle
 
 from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
 import handlers  # triggers handlers/__init__.py  (the auto-loader)
-
+import services
 
 async def main():
     # ── Create clients ──────────────────────────────────────
@@ -34,7 +34,7 @@ async def main():
 
     # ── Auto-load every handler in handlers/ ────────────────
     handlers.load_all(bot, userbot)
-
+    
     # ── Start both clients ───────────────────────────────────
     await bot.start()
     await userbot.start()
