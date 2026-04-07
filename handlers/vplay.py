@@ -1,30 +1,47 @@
-"""/vplay command handler (video)."""
+# ============================================================
+#  handlers/vplay.py  —  /vplay <song name>  →  sends VIDEO (480p)
+# ============================================================
 
-from telegram import Update
-from telegram.ext import ContextTypes
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
-from services.downloader import fetch_video_file
-from services.youtube import find_youtube_link
+from services.youtube import get_youtube_link
+from services.downloader import fetch_media
 
 
-async def vplay_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /vplay <query> and return a video file."""
-    if not context.args:
-        await update.message.reply_text("Usage: /vplay <song name>")
-        return
+def register_vplay(bot: Client, userbot: Client):
+    """Register the /vplay command on the bot client."""
 
-    query = " ".join(context.args)
-    await update.message.reply_text(f"🎬 Searching video for: {query}")
+    @bot.on_message(filters.command("vplay") & (filters.private | filters.group))
+    async def vplay_handler(client: Client, message: Message):
+        # ── Validate input ──
+        if len(message.command) < 2:
+            await message.reply(
+                "🎬 Usage: `/vplay <song name>`\n"
+                "Example: `/vplay Shape of You Ed Sheeran`"
+            )
+            return
 
-    youtube_url = await find_youtube_link(query)
-    if not youtube_url:
-        await update.message.reply_text("No matching YouTube result found.")
-        return
+        query = " ".join(message.command[1:])
+        status = await message.reply(f"🔍 **Searching for:** `{query}` …")
 
-    video_path = await fetch_video_file(youtube_url)
-    if not video_path:
-        await update.message.reply_text("Failed to download video.")
-        return
+        # ── Find YouTube URL via Gemini ──
+        url = await get_youtube_link(query)
+        if not url:
+            await status.edit("❌ Could not find a YouTube link for that song.")
+            return
 
-    with open(video_path, "rb") as video:
-        await update.message.reply_video(video=video, caption=query)
+        await status.edit(f"🎯 **Found:** `{url}`\n⚙️ Processing video (480p)…")
+
+        # ── Fetch & deliver ──
+        success = await fetch_media(
+            userbot=userbot,
+            bot=bot,
+            youtube_url=url,
+            mode="video",
+            target_chat_id=message.chat.id,
+            status_msg=status,
+        )
+
+        if not success:
+            pass
