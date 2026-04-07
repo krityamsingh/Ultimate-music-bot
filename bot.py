@@ -1,21 +1,58 @@
-"""Main entry point for the Ultimate Music Bot."""
+# ============================================================
+#  bot.py  —  Entry point
+#
+#  Runs TWO Pyrogram clients simultaneously:
+#    • bot      → responds to users (/play, /vplay)
+#    • userbot  → interacts with MegaSaverBot in the private GC
+# ============================================================
 
-from telegram.ext import Application, CommandHandler
+import asyncio
+from pyrogram import Client, idle
 
-from config import BOT_TOKEN
-from handlers.play import play_command
-from handlers.vplay import vplay_command
+from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
+from handlers.play  import register_play
+from handlers.vplay import register_vplay
 
 
-def main() -> None:
-    """Start the bot and register command handlers."""
-    app = Application.builder().token(BOT_TOKEN).build()
+async def main():
+    # ── Bot client (uses bot token) ──
+    bot = Client(
+        name="music_bot",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        bot_token=BOT_TOKEN,
+    )
 
-    app.add_handler(CommandHandler("play", play_command))
-    app.add_handler(CommandHandler("vplay", vplay_command))
+    # ── Userbot client (uses string session) ──
+    userbot = Client(
+        name="userbot",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        session_string=STRING_SESSION,
+    )
 
-    app.run_polling(close_loop=False)
+    # ── Register command handlers ──
+    register_play(bot, userbot)
+    register_vplay(bot, userbot)
+
+    # ── Start both clients ──
+    await bot.start()
+    await userbot.start()
+
+    bot_info = await bot.get_me()
+    user_info = await userbot.get_me()
+
+    print("=" * 50)
+    print(f"✅ Bot started     : @{bot_info.username}")
+    print(f"✅ Userbot started : @{user_info.username}")
+    print("🎵 Commands ready  : /play  /vplay")
+    print("=" * 50)
+
+    await idle()
+
+    await bot.stop()
+    await userbot.stop()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
