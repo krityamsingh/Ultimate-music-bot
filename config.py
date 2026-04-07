@@ -1,9 +1,28 @@
-"""All credentials and constants for the bot."""
+# ============================================================
+#  config.py  —  All credentials and constants
+# ============================================================
 
-import os
+# --- Telegram credentials ---
+API_ID       = 27941605
+API_HASH     = "dd6639871a2f54a059151dc0b3277bb8"
+BOT_TOKEN    = "8749817037:AAH1YECmimuQJ9fFObzhXxaegEIhTxol5Fw"
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-MEGASAVER_BOT_USERNAME = os.getenv("MEGASAVER_BOT_USERNAME", "MegaSaverBot")
-DEFAULT_AUDIO_QUALITY = "128k"
-DEFAULT_VIDEO_QUALITY = "720p"
+# --- Userbot / String session (used to click MegaSaverBot buttons) ---
+STRING_SESSION = (
+    "BQGqWuUAaEt0lcZQBgGgi2hYeWLZY7Rn_JUZDO9uuAqSP3SsqzjvrIb8dBdHv60y9amfZnhJxnn3R4jORtpqhLR5aIkv8Q9m0e-ilPGA9j_L5VCwAIyGve0mNCBrSh1ex"
+    "zPYyEVe0WdcXIZj_CH11INe_bVSEL2ILsxJ4h5TwdoA9RiFj_l8hRt-bMdRl-FA6kIH29eJjxAUkf6SwlwgxYWGPEq3zdq-TreX2uXydJ3p0j8aUmdMAsl0CxM0HzxQl5V"
+    "p3n7yiMrusMhVQz4uAWkp23NFjCrBKozw4GkU2m864knc_p1GRSumSpUcJD5u-VxNhBjzd2dBiDz3FULRCCXRzZzNLwAAAAFJwHCDAA"
+)
+
+# --- Gemini API ---
+GEMINI_API_KEY = "AIzaSyBCoI5nH3909MzyudlOZIOD83cKRBFOL4E"
+
+# --- Private group where MegaSaverBot lives ---
+PRIVATE_GC_ID  = -1003864293232
+
+# --- MegaSaverBot username (to detect its replies) ---
+MEGA_SAVER_BOT = "MegaSaverBot"
+
+# --- Timeouts (seconds) ---
+WAIT_FOR_BUTTONS = 30   # how long to wait for MegaSaverBot inline buttons
+WAIT_FOR_FILE    = 120  # how long to wait for the actual audio/video file
