@@ -1,30 +1,48 @@
-"""/play command handler (audio)."""
+# ============================================================
+#  handlers/play.py  —  /play <song name>  →  sends AUDIO
+# ============================================================
 
-from telegram import Update
-from telegram.ext import ContextTypes
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
-from services.downloader import fetch_audio_file
-from services.youtube import find_youtube_link
+from services.youtube import get_youtube_link
+from services.downloader import fetch_media
 
 
-async def play_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /play <query> and return an audio file."""
-    if not context.args:
-        await update.message.reply_text("Usage: /play <song name>")
-        return
+def register_play(bot: Client, userbot: Client):
+    """Register the /play command on the bot client."""
 
-    query = " ".join(context.args)
-    await update.message.reply_text(f"🔎 Searching audio for: {query}")
+    @bot.on_message(filters.command("play") & (filters.private | filters.group))
+    async def play_handler(client: Client, message: Message):
+        # ── Validate input ──
+        if len(message.command) < 2:
+            await message.reply(
+                "🎵 Usage: `/play <song name>`\n"
+                "Example: `/play Shape of You Ed Sheeran`"
+            )
+            return
 
-    youtube_url = await find_youtube_link(query)
-    if not youtube_url:
-        await update.message.reply_text("No matching YouTube result found.")
-        return
+        query = " ".join(message.command[1:])
+        status = await message.reply(f"🔍 **Searching for:** `{query}` …")
 
-    audio_path = await fetch_audio_file(youtube_url)
-    if not audio_path:
-        await update.message.reply_text("Failed to download audio.")
-        return
+        # ── Find YouTube URL via Gemini ──
+        url = await get_youtube_link(query)
+        if not url:
+            await status.edit("❌ Could not find a YouTube link for that song.")
+            return
 
-    with open(audio_path, "rb") as audio:
-        await update.message.reply_audio(audio=audio, caption=query)
+        await status.edit(f"🎯 **Found:** `{url}`\n⚙️ Processing audio…")
+
+        # ── Fetch & deliver ──
+        success = await fetch_media(
+            userbot=userbot,
+            bot=bot,
+            youtube_url=url,
+            mode="audio",
+            target_chat_id=message.chat.id,
+            status_msg=status,
+        )
+
+        if not success:
+            # status message already updated inside fetch_media
+            pass
