@@ -153,3 +153,42 @@ async def fetch_and_download(
         return None
 
     return file_path
+
+
+async def fetch_media(
+    userbot: Client,
+    bot: Client,
+    youtube_url: str,
+    mode: str,           # "audio" or "video"
+    target_chat_id: int,
+    status_msg,
+) -> bool:
+    """
+    Fetches media via MegaSaverBot and forwards the file to target_chat_id.
+    Returns True on success, False on failure.
+    """
+    file_path = await fetch_and_download(
+        userbot=userbot,
+        youtube_url=youtube_url,
+        mode=mode,
+        status_msg=status_msg,
+    )
+    if not file_path:
+        return False
+
+    try:
+        await status_msg.edit("🟩🟩🟩🟩🟩🟩🟩🟩  *Sending file...*")
+        if mode == "video":
+            await bot.send_video(target_chat_id, file_path)
+        else:
+            await bot.send_audio(target_chat_id, file_path)
+        await status_msg.delete()
+        return True
+    except Exception as e:
+        await status_msg.edit(f"❌  Failed to send the file.\n`{e}`")
+        return False
+    finally:
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
