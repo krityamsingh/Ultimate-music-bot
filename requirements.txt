@@ -1,5 +1,5 @@
 pyrofork
 TgCrypto
-py-tgcalls[fast]==2.2.12
+py-tgcalls[fast]<2.2.0
 yt-dlp
 aiohttp
