@@ -81,3 +81,14 @@ async def search_youtube(query: str) -> dict | None:
     """
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _extract_sync, query)
+
+
+async def get_youtube_link(query: str) -> str | None:
+    """
+    Returns just the YouTube webpage URL for a given search query.
+    Used by /vplay to get a URL before handing off to the downloader.
+    """
+    info = await search_youtube(query)
+    if info:
+        return info.get("webpage_url")
+    return None
