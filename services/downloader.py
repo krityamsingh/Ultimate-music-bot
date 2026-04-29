@@ -2,130 +2,154 @@
 #  services/downloader.py
 #
 #  Flow:
-#  1. Userbot sends YouTube URL to PRIVATE_GC_ID
-#  2. MegaSaverBot replies with an inline keyboard (Audio / Video buttons)
-#  3. Userbot clicks the correct button
+#  1. Userbot sends YouTube URL to LOG_GC_ID
+#  2. MegaSaverBot replies with inline buttons (Audio / Video)
+#  3. Userbot clicks the right button
 #  4. MegaSaverBot sends the media file
-#  5. We forward that file to the requesting user via the bot
+#  5. Userbot downloads the file to disk and returns the path
 # ============================================================
 
 import asyncio
 import time
+import os
 from pyrogram import Client
 from pyrogram.types import Message
 from config import (
-    PRIVATE_GC_ID,
+    LOG_GC_ID,
     MEGA_SAVER_BOT,
     WAIT_FOR_BUTTONS,
     WAIT_FOR_FILE,
 )
 
 
-async def fetch_media(
+async def fetch_and_download(
     userbot: Client,
-    bot: Client,
     youtube_url: str,
     mode: str,           # "audio" or "video"
-    target_chat_id: int, # where to forward the result
-    status_msg: Message, # the "searching…" message to edit
-) -> bool:
+    status_msg: Message,
+) -> str | None:
     """
-    Sends the YouTube URL into the private GC, waits for MegaSaverBot
-    to reply with buttons, clicks the right one, then waits for the
-    media file and forwards it to target_chat_id.
-
-    Returns True on success, False on failure.
+    Sends the YouTube URL to the log GC, waits for MegaSaverBot buttons,
+    clicks the right one, waits for the file, downloads it to /tmp,
+    and returns the local file path. Returns None on failure.
     """
 
-    # ── Step 1: Send the YouTube URL into the private GC via userbot ──
-    sent: Message = await userbot.send_message(PRIVATE_GC_ID, youtube_url)
+    # ── Step 1: Send URL to log GC ────────────────────────────
+    sent: Message = await userbot.send_message(LOG_GC_ID, youtube_url)
     sent_msg_id = sent.id
 
-    # ── Step 2: Wait for MegaSaverBot to reply with inline buttons ──
-    await status_msg.edit("⏳ **Waiting for download options…**")
+    # ── Step 2: Wait for MegaSaverBot inline buttons ──────────
+    await status_msg.edit(
+        "🎵  **Music Bot**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🟩🟩🟩🟩⬜⬜⬜⬜  *Waiting for download options...*"
+    )
 
-    button_message: Message | None = None
+    button_msg: Message | None = None
     deadline = time.time() + WAIT_FOR_BUTTONS
 
     while time.time() < deadline:
         await asyncio.sleep(2)
-        async for msg in userbot.get_chat_history(PRIVATE_GC_ID, limit=10):
-            # We want a message FROM MegaSaverBot that has an inline keyboard
+        async for msg in userbot.get_chat_history(LOG_GC_ID, limit=10):
             if (
                 msg.from_user
                 and msg.from_user.username
                 and msg.from_user.username.lower() == MEGA_SAVER_BOT.lower()
-                and msg.reply_markup              # has inline buttons
-                and msg.id > sent_msg_id          # came after our request
+                and msg.reply_markup
+                and msg.id > sent_msg_id
             ):
-                button_message = msg
+                button_msg = msg
                 break
-        if button_message:
+        if button_msg:
             break
 
-    if not button_message:
-        await status_msg.edit("❌ MegaSaverBot did not respond with options.")
-        return False
+    if not button_msg:
+        await status_msg.edit(
+            "🎵  **Music Bot**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "❌  MegaSaverBot did not respond."
+        )
+        return None
 
-    # ── Step 3: Click the right button ──
-    #
-    # MegaSaverBot typically sends buttons like:
-    #   [ 🎵 Audio ]  [ 🎬 Video 480p ]
-    #
-    # We match the button label by the mode requested.
-
-    target_keyword = "audio" if mode == "audio" else "480"  # 480p for video
+    # ── Step 3: Click the right button ───────────────────────
+    target_kw = "audio" if mode == "audio" else "480"
     clicked = False
 
-    markup = button_message.reply_markup
+    markup = button_msg.reply_markup
     if markup and hasattr(markup, "inline_keyboard"):
         for row in markup.inline_keyboard:
-            for button in row:
-                if target_keyword.lower() in button.text.lower():
+            for btn in row:
+                if target_kw.lower() in btn.text.lower():
                     await status_msg.edit(
-                        f"🖱 **Clicking:** `{button.text}` …"
+                        "🎵  **Music Bot**\n"
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🟩🟩🟩🟩🟩⬜⬜⬜  *Clicking {btn.text}...*"
                     )
-                    await button_message.click(button.text)
+                    await button_msg.click(btn.text)
                     clicked = True
                     break
             if clicked:
                 break
 
     if not clicked:
-        await status_msg.edit("❌ Could not find the right button to click.")
-        return False
+        await status_msg.edit(
+            "🎵  **Music Bot**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "❌  Could not find the download button."
+        )
+        return None
 
-    # ── Step 4: Wait for the actual media file from MegaSaverBot ──
-    await status_msg.edit("📥 **Downloading… please wait.**")
+    # ── Step 4: Wait for the media file ──────────────────────
+    await status_msg.edit(
+        "🎵  **Music Bot**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🟩🟩🟩🟩🟩🟩⬜⬜  *Downloading file...*"
+    )
 
-    media_message: Message | None = None
+    media_msg: Message | None = None
     deadline = time.time() + WAIT_FOR_FILE
 
     while time.time() < deadline:
         await asyncio.sleep(3)
-        async for msg in userbot.get_chat_history(PRIVATE_GC_ID, limit=15):
+        async for msg in userbot.get_chat_history(LOG_GC_ID, limit=15):
             if (
                 msg.from_user
                 and msg.from_user.username
                 and msg.from_user.username.lower() == MEGA_SAVER_BOT.lower()
-                and msg.id > button_message.id
+                and msg.id > button_msg.id
                 and (msg.audio or msg.video or msg.document)
             ):
-                media_message = msg
+                media_msg = msg
                 break
-        if media_message:
+        if media_msg:
             break
 
-    if not media_message:
-        await status_msg.edit("❌ Timed out waiting for the media file.")
-        return False
+    if not media_msg:
+        await status_msg.edit(
+            "🎵  **Music Bot**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "❌  Timed out waiting for the file."
+        )
+        return None
 
-    # ── Step 5: Forward the media to the user ──
-    await status_msg.edit("📤 **Sending you the file…**")
-    await userbot.forward_messages(
-        chat_id=target_chat_id,
-        from_chat_id=PRIVATE_GC_ID,
-        message_ids=media_message.id,
+    # ── Step 5: Download to disk ──────────────────────────────
+    await status_msg.edit(
+        "🎵  **Music Bot**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🟩🟩🟩🟩🟩🟩🟩⬜  *Saving to player...*"
     )
-    await status_msg.delete()
-    return True
+
+    ext = "mp4" if mode == "video" else "mp3"
+    file_path = f"/tmp/music_{media_msg.id}.{ext}"
+
+    await userbot.download_media(media_msg, file_name=file_path)
+
+    if not os.path.exists(file_path):
+        await status_msg.edit(
+            "🎵  **Music Bot**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "❌  File download failed."
+        )
+        return None
+
+    return file_path
