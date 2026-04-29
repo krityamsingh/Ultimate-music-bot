@@ -2,21 +2,18 @@
 #  start.py  —  The one file you always run
 #
 #  python start.py
-#
-#  What it does:
-#    1. Creates the bot + userbot Pyrogram clients
-#    2. Calls handlers.load_all()  → auto-registers EVERY handler
-#    3. Starts both clients and idles until Ctrl-C
 # ============================================================
 
 import asyncio
 from pyrogram import Client, idle
 
 from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
-import handlers  # triggers handlers/__init__.py  (the auto-loader)
+import handlers
+from services.player import init_player, start_player
+
 
 async def main():
-    # ── Create clients ──────────────────────────────────────
+    # ── Clients ──────────────────────────────────────────────
     bot = Client(
         name="music_bot",
         api_id=API_ID,
@@ -31,12 +28,16 @@ async def main():
         session_string=STRING_SESSION,
     )
 
-    # ── Auto-load every handler in handlers/ ────────────────
+    # ── PyTgCalls (voice chat engine) ─────────────────────────
+    init_player(userbot)
+
+    # ── Auto-load handlers ────────────────────────────────────
     handlers.load_all(bot, userbot)
-    
-    # ── Start both clients ───────────────────────────────────
+
+    # ── Start everything ──────────────────────────────────────
     await bot.start()
     await userbot.start()
+    await start_player()          # must start AFTER userbot.start()
 
     bot_info  = await bot.get_me()
     user_info = await userbot.get_me()
@@ -45,14 +46,12 @@ async def main():
     print("=" * 52)
     print(f"  🤖  Bot     : @{bot_info.username}")
     print(f"  👤  Userbot : @{user_info.username}")
-    print("  🎵  Ready   : /play  |  /vplay")
+    print("  🎵  Ready   : /play  |  /stop  |  /pause  |  /resume")
     print("=" * 52)
     print()
 
-    # ── Keep running until Ctrl-C ────────────────────────────
     await idle()
 
-    # ── Graceful shutdown ────────────────────────────────────
     print("\n[start] Shutting down…")
     await bot.stop()
     await userbot.stop()
