@@ -1,5 +1,6 @@
-pyrofork
-TgCrypto
-py-tgcalls[fast]<2.2.0
-yt-dlp
-aiohttp
+pyrofork==2.3.69
+TgCrypto==1.2.5
+py-tgcalls[fast]==2.1.1
+ntgcalls==2.1.0
+yt-dlp==2026.3.17
+aiohttp==3.13.5
