@@ -6,7 +6,7 @@ import os
 
 API_ID         = int(os.getenv("API_ID",         "27941605"))
 API_HASH       = os.getenv("API_HASH",            "dd6639871a2f54a059151dc0b3277bb8")
-BOT_TOKEN      = os.getenv("BOT_TOKEN",           "8749817037:AAH1YECmimuQJ9fFObzhXxaegEIhTxol5Fw")
+BOT_TOKEN      = os.getenv("BOT_TOKEN",           "8749817037:AAEYJ1W6zjvnI34iOiQZAXkd5kTJgy8KtMA")
 
 STRING_SESSION = os.getenv("STRING_SESSION", (
     "BQGqWuUAaEt0lcZQBgGgi2hYeWLZY7Rn_JUZDO9uuAqSP3SsqzjvrIb8dBdHv60y9amfZnhJxnn3R4jORtpqhLR5aIkv8Q9m0e-ilPGA9j_L5VCwAIyGve0mNCBrSh1ex"
