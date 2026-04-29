@@ -1,13 +1,8 @@
 # ============================================================
-#  handlers/__init__.py
+#  handlers/__init__.py  —  Auto-loader
 #
-#  Auto-loader: scans this package for every module that
-#  exposes a  register(bot, userbot)  function and calls it.
-#
-#  ✅ To add a new feature later:
-#     1. Create  handlers/myfeature.py
-#     2. Define  def register(bot, userbot): ...  inside it
-#     3. That's it — nothing else to touch.
+#  Add a new feature: just create handlers/myfeature.py
+#  with a  def register(bot, userbot):  function.
 # ============================================================
 
 import importlib
@@ -16,14 +11,10 @@ from pathlib import Path
 
 
 def load_all(bot, userbot):
-    """
-    Dynamically import every module inside the handlers/ package
-    and call its register(bot, userbot) function if it exists.
-    """
-    package_dir = Path(__file__).parent
-    package_name = __name__  # "handlers"
+    package_dir  = Path(__file__).parent
+    package_name = __name__
 
-    loaded = []
+    loaded  = []
     skipped = []
 
     for module_info in pkgutil.iter_modules([str(package_dir)]):
@@ -43,6 +34,6 @@ def load_all(bot, userbot):
         else:
             skipped.append(module_info.name)
 
-    print(f"[handlers] ✅ Loaded   : {loaded}")
+    print(f"[handlers] ✅ Loaded : {loaded}")
     if skipped:
-        print(f"[handlers] ⏭  Skipped  : {skipped}  (no register() found)")
+        print(f"[handlers] ⏭  Skipped: {skipped}  (no register() found)")
