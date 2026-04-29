@@ -1,14 +1,12 @@
-cat > /home/claude/music-bot/handlers/play.py << 'EOF'
 # ============================================================
 #  handlers/play.py  —  /play <song>
-#  Flow: yt-dlp search → MegaSaverBot audio → play in VC
+#  Flow: yt-dlp search → stream URL → play in VC
 # ============================================================
 
 import asyncio, os
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from services.youtube import search_youtube
-from services.downloader import fetch_and_download
 from services.player import play_audio
 
 
@@ -48,28 +46,12 @@ def register(bot: Client, userbot: Client):
             "🎵  **Music Bot**\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯  **Found:** {info['title']}\n"
-            "🟩🟩🟩⬜⬜⬜⬜⬜  *Loading track...*"
-        )
-
-        # ── MegaSaverBot: get audio file ────────────────────────
-        file_path = await fetch_and_download(
-            userbot=userbot,
-            youtube_url=info["webpage_url"],
-            mode="audio",
-            status_msg=status,
-        )
-        if not file_path:
-            return
-
-        # ── Play in VC ──────────────────────────────────────────
-        await status.edit(
-            "🎵  **Music Bot**\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
             "🟩🟩🟩🟩🟩🟩🟩⬜  *Joining voice chat...*"
         )
 
+        # ── Play in VC via stream URL ───────────────────────────
         try:
-            await play_audio(message.chat.id, file_path, info)
+            await play_audio(message.chat.id, info["stream_url"], info)
         except Exception as e:
             await status.edit(
                 "🎵  **Music Bot**\n"
@@ -78,8 +60,6 @@ def register(bot: Client, userbot: Client):
                 "Make sure there is an **active Voice Chat** in this group.\n"
                 f"`{e}`"
             )
-            try: os.remove(file_path)
-            except: pass
             return
 
         # ── Now Playing card ────────────────────────────────────
@@ -100,6 +80,3 @@ def register(bot: Client, userbot: Client):
             except Exception:
                 pass
         await bot.send_message(message.chat.id, caption, disable_web_page_preview=False)
-
-
-
