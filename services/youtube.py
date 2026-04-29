@@ -1,58 +1,83 @@
 # ============================================================
-#  services/youtube.py  —  Use Gemini to find a YouTube link
+#  services/youtube.py
+#
+#  Searches YouTube using yt-dlp — NO API KEY required.
+#  Returns stream URL, thumbnail, title, duration, etc.
 # ============================================================
 
-import re
-import aiohttp
-from config import GEMINI_API_KEY
-
-GEMINI_URL = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/"
-    f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-)
-
-PROMPT_TEMPLATE = (
-    "Find the best matching YouTube video URL for the song: '{query}'.\n"
-    "Return ONLY the full YouTube URL (https://www.youtube.com/watch?v=...) "
-    "and nothing else. No explanation, no markdown, just the raw URL."
-)
+import asyncio
+import yt_dlp
 
 
-async def get_youtube_link(query: str) -> str | None:
-    """
-    Ask Gemini to return a YouTube URL for the given song query.
-    Returns the URL string, or None if not found.
-    """
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": PROMPT_TEMPLATE.format(query=query)}
-                ]
-            }
-        ]
-    }
+# ── yt-dlp options ────────────────────────────────────────────
+_YDL_OPTS = {
+    "format":          "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best",
+    "noplaylist":      True,
+    "quiet":           True,
+    "no_warnings":     True,
+    "source_address":  "0.0.0.0",
+    # Do NOT download — we only want the stream URL
+    "skip_download":   True,
+}
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(GEMINI_URL, json=payload) as resp:
-            if resp.status != 200:
-                return None
-            data = await resp.json()
 
-    # Extract the text from the Gemini response
-    try:
-        raw_text: str = (
-            data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        )
-    except (KeyError, IndexError):
+def _extract_sync(query: str) -> dict | None:
+    """Blocking yt-dlp call — run in executor to avoid blocking the event loop."""
+    with yt_dlp.YoutubeDL(_YDL_OPTS) as ydl:
+        try:
+            data = ydl.extract_info(f"ytsearch1:{query}", download=False)
+        except Exception:
+            return None
+
+    if not data or "entries" not in data or not data["entries"]:
         return None
 
-    # Validate it actually looks like a YouTube URL
-    match = re.search(
-        r"(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w\-]+)",
-        raw_text,
-    )
-    if match:
-        return match.group(1)
+    entry = data["entries"][0]
 
-    return None
+    # ── Pick the best audio-only direct stream URL ────────────
+    stream_url: str | None = None
+    best_abr = 0
+
+    for fmt in entry.get("formats", []):
+        vcodec = fmt.get("vcodec", "none")
+        acodec = fmt.get("acodec", "none")
+        url    = fmt.get("url", "")
+
+        if acodec != "none" and vcodec in ("none", None, "") and url:
+            abr = fmt.get("abr") or 0
+            if abr >= best_abr:
+                best_abr   = abr
+                stream_url = url
+
+    # Fallback to the generic 'url' field
+    if not stream_url:
+        stream_url = entry.get("url") or entry.get("webpage_url")
+
+    # ── Best thumbnail (highest resolution) ───────────────────
+    thumbnail = ""
+    thumbs = entry.get("thumbnails") or []
+    if thumbs:
+        # Sort by width descending; fall back to last entry
+        sorted_thumbs = sorted(thumbs, key=lambda t: t.get("width") or 0, reverse=True)
+        thumbnail = sorted_thumbs[0].get("url", "")
+    if not thumbnail:
+        thumbnail = entry.get("thumbnail", "")
+
+    return {
+        "title":       entry.get("title",      "Unknown Title"),
+        "uploader":    entry.get("uploader",    "Unknown Artist"),
+        "thumbnail":   thumbnail,
+        "duration":    int(entry.get("duration") or 0),
+        "webpage_url": entry.get("webpage_url", ""),
+        "stream_url":  stream_url,
+        "views":       entry.get("view_count",  0),
+    }
+
+
+async def search_youtube(query: str) -> dict | None:
+    """
+    Async wrapper around the blocking yt-dlp call.
+    Returns a dict with track info, or None on failure.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _extract_sync, query)
