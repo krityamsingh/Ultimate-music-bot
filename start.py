@@ -6,10 +6,22 @@
 
 import asyncio
 from pyrogram import Client, idle
+from pyrogram.errors import FloodWait
 
 from config import API_ID, API_HASH, BOT_TOKEN, STRING_SESSION
 import handlers
 from services.player import init_player, start_player
+
+
+async def safe_start(client: Client, label: str) -> None:
+    """Start a Pyrogram client, respecting FloodWait instead of crashing."""
+    while True:
+        try:
+            await client.start()
+            return
+        except FloodWait as e:
+            print(f"[start] ⏳  Telegram flood-wait on {label}: sleeping {e.value}s …")
+            await asyncio.sleep(e.value + 5)   # +5s safety margin
 
 
 async def main():
@@ -34,9 +46,9 @@ async def main():
     # ── Auto-load handlers ────────────────────────────────────
     handlers.load_all(bot, userbot)
 
-    # ── Start everything ──────────────────────────────────────
-    await bot.start()
-    await userbot.start()
+    # ── Start everything (flood-safe) ─────────────────────────
+    await safe_start(bot,     "bot")
+    await safe_start(userbot, "userbot")
     await start_player()          # must start AFTER userbot.start()
 
     bot_info  = await bot.get_me()
