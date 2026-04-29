@@ -1,4 +1,4 @@
-pyrogram==2.0.106
+pyrofork==2.0.112
 TgCrypto
 py-tgcalls[fast]
 yt-dlp
